@@ -6,7 +6,7 @@
 
 
 // Player :3
-class Player : public sf::Drawable {
+class Player {
     public:
         Player(const Player&) = delete;
         Player& operator=(const Player&) = delete;
@@ -17,47 +17,120 @@ class Player : public sf::Drawable {
         // regardless of what is given.  
         template<typename ... Args>
         void setPosition(Args&& ... args) {
-            _shape.setPosition(std::forward<Args>(args)...);
+            snake[0].setPosition(std::forward<Args>(args)...);
         }
 
-        void update(sf::Time deltaTime);
-        void processEvents();
+        void moveSnake();
+        bool checkHitTail();
+        bool checkHitWall();
+        bool checkApple(sf::Vector2f applePos);
+
+        bool update(sf::Time deltaTime);
+        void processEvents(sf::Keyboard::Key key);
+        void draw(sf::RenderWindow& window) {for (sf::RectangleShape segment : snake) window.draw(segment);}
     
     private:
-        virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
-        sf::RectangleShape _shape;
-        bool isMoving;
-        int rotation;
-        sf::Vector2f _velocity;
+        std::vector<sf::RectangleShape> snake;
+        int direction;
+        sf::Vector2f tail; // location of last position
 };
 
-Player::Player() : _shape(sf::Vector2f(24,24)) {
-    _shape.setFillColor(sf::Color(71, 223, 127));
-    _shape.setOrigin({4,4});
+Player::Player() {
+    snake.push_back(sf::RectangleShape(sf::Vector2f(24,24)));
+    snake[0].setFillColor(sf::Color(71, 223, 127));
+    snake[0].setOrigin({4,4});
+    snake[0].setPosition({1920/2-24, 1024/2-24});
 }
 
-void Player::update(sf::Time deltaTime) {
-    float seconds = deltaTime.asSeconds();
-    if (rotation != 0) {
-        sf::Angle angle = sf::degrees(rotation*180*seconds);
-        _shape.rotate(angle);
+void Player::processEvents(sf::Keyboard::Key key) {
+    switch (key) {
+        case sf::Keyboard::Key::W:
+            direction = 1;
+            break;
+        case sf::Keyboard::Key::A:
+            direction = 2;
+            break;
+        case sf::Keyboard::Key::S:
+            direction = 3;
+            break;
+        case sf::Keyboard::Key::D:
+            direction = 4;
+            break;
+        default:
+            break;
     }
-    if (isMoving) {
-        sf::Angle angle = _shape.getRotation();
-        _velocity += sf::Vector2f(std::cos(angle.asRadians()), std::sin(angle.asRadians())) * 60.f * seconds;
+}
+
+bool Player::update(sf::Time deltaTime) {
+    moveSnake();
+    if (checkHitTail()) return true;
+    if (checkHitWall()) return true;
+    return false;
+}
+
+bool Player::checkHitTail() {
+    for (int i = 1; i < snake.size(); i++) {
+        if (snake[0].getPosition() == snake[i].getPosition())
+            return true;
     }
-    _shape.move(seconds * _velocity);
+    return false;
 }
 
-void Player::processEvents() {
-    isMoving = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up);
-    rotation = 0;
-    rotation -= sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left);
-    rotation += sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right);
+// Check if collided with apple, and add new segment if it did
+bool Player::checkApple(sf::Vector2f applePos) {
+    if (snake[0].getPosition() == applePos) {
+        snake.push_back(sf::RectangleShape(sf::Vector2f(24,24)));
+        snake[snake.size()-1].setFillColor(sf::Color(71, 223, 127));
+        snake[snake.size()-1].setOrigin({4,4});
+        snake[snake.size()-1].setPosition(tail);
+        return true;
+    }
+    return false;
 }
 
-void Player::draw(sf::RenderTarget& target, sf::RenderStates states) const {
-    target.draw(_shape, states);
+// move the snake
+// w:1, a:2, s:3, d:4
+void Player::moveSnake() {
+    tail = snake[snake.size()-1].getPosition();
+    for (int i = snake.size()-1; i >= 1; i--) {
+        snake[i].setPosition(snake[i-1].getPosition());
+    }
+    switch (direction) {
+        case 1:
+            snake[0].move(sf::Vector2f(0,-32));
+            break;
+        case 2:
+            snake[0].move(sf::Vector2f(-32,0));
+            break;
+        case 3:
+            snake[0].move(sf::Vector2f(0,32));
+            break;
+        case 4:
+            snake[0].move(sf::Vector2f(32,0));
+            break;
+        default:
+            break;
+    }
+}
+
+class Apple {
+    public:
+        Apple(const Apple&) = delete;
+        Apple& operator=(const Apple&) = delete;
+        Apple();
+
+        sf::Vector2f getPosition() {return _apple.getPosition();}
+        
+        void newApple();
+        void draw(sf::RenderWindow& window) {window.draw(_apple);}
+    
+    private:
+        sf::RectangleShape _apple;
+};
+Apple::Apple() : _apple(sf::Vector2f(24,24)) {
+    _apple.setFillColor(sf::Color(223, 71, 127));
+    _apple.setOrigin({4,4});
+    newApple();
 }
 
 /* Game class for 
@@ -79,28 +152,38 @@ class Game {
     private:
         void processEvents();
         void update(sf::Time deltaTime);
-        void moveSnake(int direction);
-        void checkHitTail();
-        void checkHitWall();
-        void checkApple(sf::Vector2f lastPos);
-        void newApple();
+
+        void GameOver() {_window.close();};
+
         void render();
 
         sf::RenderWindow _window;
-        sf::RectangleShape _background[gridX][gridY];
+        sf::RectangleShape _background[gridX][gridY]; // do this next
+
         std::vector<sf::RectangleShape> _sprites;
         sf::Vector2f _LastTailPos;
-        sf::RectangleShape _apple;
-        int appleNum = 0;
         int _direction = 0; 
 
         Player _player;
+        Apple _apple;
         // sf::RenderWindow _sprites;
         // sf::RenderWindow _menu;
 };
 
+bool Player::checkHitWall() {
+    sf::Vector2f head = snake[0].getPosition();
+    if (head.x < 0 || head.x > Game::gridX*32 || head.y < 0 || head.y > Game::gridY*32)
+        return true;
+    return false;
+}
+
+// new apple
+void Apple::newApple() {
+    _apple.setPosition({((rand()%Game::gridX)*32.f+8), ((rand()%Game::gridY)*32.f+8)});
+}
+
 // Create the window and player
-Game::Game() : _window(sf::VideoMode({1920u, 1080u}), "CMake SFML Project") {
+Game::Game() : _window(sf::VideoMode({1920u, 1080u}), "Kept you waiting huh?") {
     for (int i = 0; i < 60;i++) {
         for (int j = 0; j < 32; j++) {
             _background[i][j].setSize(sf::Vector2f(32,32));
@@ -110,15 +193,6 @@ Game::Game() : _window(sf::VideoMode({1920u, 1080u}), "CMake SFML Project") {
             _background[i][j].setPosition({static_cast<float>(i)*32, static_cast<float>(j)*32});
         }
     }
-    sf::RectangleShape newPlayer;
-    _sprites.push_back(newPlayer);
-    _sprites[0].setSize(sf::Vector2f(24,24));
-    _sprites[0].setFillColor(sf::Color(71, 223, 127));
-    _sprites[0].setPosition({1920/2-28, 1024/2-28});
-
-    _apple.setSize(sf::Vector2f(24,24));
-    _apple.setFillColor(sf::Color(223, 71, 127));
-    _apple.setPosition({1920/4-28, 1024/4-28});
 }
 
 // Main game loop
@@ -144,95 +218,21 @@ void Game::run(int fps) {
 
 // Handle user inputs
 void Game::processEvents() {
-    while (std::optional event = _window.pollEvent()) {
+    while (const std::optional<sf::Event> event = _window.pollEvent()) {
         if ((event->is<sf::Event::Closed>()) or ((event->getIf<sf::Event::KeyPressed>()) and (event->getIf<sf::Event::KeyPressed>()->code == sf::Keyboard::Key::Escape))) {
             _window.close();
             break;
-        } else if ((event->getIf<sf::Event::KeyPressed>())) {
-            switch (event->getIf<sf::Event::KeyPressed>()->code) {
-                case sf::Keyboard::Key::W:
-                    _direction = 1;
-                    break;
-                case sf::Keyboard::Key::A:
-                    _direction = 2;
-                    break;
-                case sf::Keyboard::Key::S:
-                    _direction = 3;
-                    break;
-                case sf::Keyboard::Key::D:
-                    _direction = 4;
-                    break;
-                default:
-                    break;
-            }
+        } else if (event->getIf<sf::Event::KeyPressed>()) {
+            _player.processEvents(event->getIf<sf::Event::KeyPressed>()->code);
         }
     }
-    _player.processEvents();
 }
 
 // actual game
 void Game::update(sf::Time deltaTime) {
-    // Kill snake if hit tail
-    moveSnake(_direction);
-    checkHitTail();
-    checkHitWall();
-    checkApple(_LastTailPos);
-    _player.update(deltaTime);
-}
-
-void Game::checkHitTail() {
-    for (int i = 1; i < _sprites.size(); i++) {
-        if (_sprites[0].getPosition() == _sprites[i].getPosition())
-            _window.close();
-    }
-}
-
-void Game::checkHitWall() {
-    sf::Vector2f head = _sprites[0].getPosition();
-    if (head.x < 0 || head.x > gridX*32 || head.y < 0 || head.y > gridY*32)
-        _window.close();
-}
-
-// move the snake
-// w:1, a:2, s:3, d:4
-void Game::moveSnake(int direction) {
-    _LastTailPos = _sprites[_sprites.size() - 1].getPosition();
-    for (int i = _sprites.size()-1; i >= 1; i--) {
-        _sprites[i].setPosition(_sprites[i-1].getPosition());
-    }
-    switch (direction) {
-        case 1:
-            _sprites[0].move(sf::Vector2f(0,-32));
-            break;
-        case 2:
-            _sprites[0].move(sf::Vector2f(-32,0));
-            break;
-        case 3:
-            _sprites[0].move(sf::Vector2f(0,32));
-            break;
-        case 4:
-            _sprites[0].move(sf::Vector2f(32,0));
-            break;
-        default:
-            break;
-    }
-}
-
-// Check if collided with apple, and add new segment if it did
-void Game::checkApple(sf::Vector2f lastPos) {
-    if (_sprites[0].getPosition() == _apple.getPosition()) {
-        sf::RectangleShape newTail;
-        _sprites.push_back(newTail);
-        _sprites[_sprites.size()-1].setSize(sf::Vector2f(24,24));
-        _sprites[_sprites.size()-1].setFillColor(sf::Color(71, 223, 127));
-        _sprites[_sprites.size()-1].setPosition(lastPos);
-        newApple();
-    }
-}
-
-// new apple
-void Game::newApple() {
-    _apple.setPosition({static_cast<float>((rand()%gridX)*32+4), static_cast<float>((rand()%gridY)*32+4)});
+    if (_player.update(deltaTime)) GameOver();
+    if (_player.checkApple(_apple.getPosition()))
+        _apple.newApple();
 }
 
 // Render game to screen
@@ -243,10 +243,10 @@ void Game::render() {
             _window.draw(_background[i][j]);
         }
     }
-    _window.draw(_apple);
+    _apple.draw(_window);
     for (int i = 0; i < _sprites.size(); i++)
         _window.draw(_sprites[i]);
-    _window.draw(_player);
+    _player.draw(_window);
     _window.display();
 }
 
@@ -254,7 +254,7 @@ int main()
 {
     srand(0);
     Game game;
-    game.run(10);
+    game.run(20);
 
     return 0;
 }
