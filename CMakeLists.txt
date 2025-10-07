@@ -15,3 +15,9 @@ FetchContent_MakeAvailable(SFML)
 add_executable(main src/main.cpp)
 target_compile_features(main PRIVATE cxx_std_17)
 target_link_libraries(main PRIVATE SFML::Graphics SFML::Audio)
+
+#[[
+rm CMakeCache.txt; 
+cmake -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH="C:/Libraries/SFML" ..
+
+]]
