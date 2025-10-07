@@ -1,6 +1,64 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 #include <cstdlib> // rand
+#include <cstring> // memcpy in class Action
+#include <cmath>   // sin and cos
+
+
+// Player :3
+class Player : public sf::Drawable {
+    public:
+        Player(const Player&) = delete;
+        Player& operator=(const Player&) = delete;
+        Player();
+
+        // to handle both overloads of sf::Transformable::setPosition(), which can use two floats, or a Vector2f
+        // we need to template for multiple args, and just pass all of them directly to the _shape.setPosition(), 
+        // regardless of what is given.  
+        template<typename ... Args>
+        void setPosition(Args&& ... args) {
+            _shape.setPosition(std::forward<Args>(args)...);
+        }
+
+        void update(sf::Time deltaTime);
+        void processEvents();
+    
+    private:
+        virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
+        sf::RectangleShape _shape;
+        bool isMoving;
+        int rotation;
+        sf::Vector2f _velocity;
+};
+
+Player::Player() : _shape(sf::Vector2f(24,24)) {
+    _shape.setFillColor(sf::Color(71, 223, 127));
+    _shape.setOrigin({4,4});
+}
+
+void Player::update(sf::Time deltaTime) {
+    float seconds = deltaTime.asSeconds();
+    if (rotation != 0) {
+        sf::Angle angle = sf::degrees(rotation*180*seconds);
+        _shape.rotate(angle);
+    }
+    if (isMoving) {
+        sf::Angle angle = _shape.getRotation();
+        _velocity += sf::Vector2f(std::cos(angle.asRadians()), std::sin(angle.asRadians())) * 60.f * seconds;
+    }
+    _shape.move(seconds * _velocity);
+}
+
+void Player::processEvents() {
+    isMoving = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up);
+    rotation = 0;
+    rotation -= sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left);
+    rotation += sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right);
+}
+
+void Player::draw(sf::RenderTarget& target, sf::RenderStates states) const {
+    target.draw(_shape, states);
+}
 
 /* Game class for 
     Window creation
@@ -15,6 +73,8 @@ class Game {
         Game& operator=(const Game&) = delete;
         Game();
         void run(int fps);
+        static const int gridX = 60;
+        static const int gridY = 32;
     
     private:
         void processEvents();
@@ -27,14 +87,14 @@ class Game {
         void render();
 
         sf::RenderWindow _window;
-        static const int _gridX = 60;
-        static const int _gridY = 32;
-        sf::RectangleShape _background[_gridX][_gridY];
+        sf::RectangleShape _background[gridX][gridY];
         std::vector<sf::RectangleShape> _sprites;
         sf::Vector2f _LastTailPos;
         sf::RectangleShape _apple;
         int appleNum = 0;
         int _direction = 0; 
+
+        Player _player;
         // sf::RenderWindow _sprites;
         // sf::RenderWindow _menu;
 };
@@ -50,8 +110,8 @@ Game::Game() : _window(sf::VideoMode({1920u, 1080u}), "CMake SFML Project") {
             _background[i][j].setPosition({static_cast<float>(i)*32, static_cast<float>(j)*32});
         }
     }
-    sf::RectangleShape player;
-    _sprites.push_back(player);
+    sf::RectangleShape newPlayer;
+    _sprites.push_back(newPlayer);
     _sprites[0].setSize(sf::Vector2f(24,24));
     _sprites[0].setFillColor(sf::Color(71, 223, 127));
     _sprites[0].setPosition({1920/2-28, 1024/2-28});
@@ -107,6 +167,7 @@ void Game::processEvents() {
             }
         }
     }
+    _player.processEvents();
 }
 
 // actual game
@@ -116,6 +177,7 @@ void Game::update(sf::Time deltaTime) {
     checkHitTail();
     checkHitWall();
     checkApple(_LastTailPos);
+    _player.update(deltaTime);
 }
 
 void Game::checkHitTail() {
@@ -127,7 +189,7 @@ void Game::checkHitTail() {
 
 void Game::checkHitWall() {
     sf::Vector2f head = _sprites[0].getPosition();
-    if (head.x < 0 || head.x > _gridX*32 || head.y < 0 || head.y > _gridY*32)
+    if (head.x < 0 || head.x > gridX*32 || head.y < 0 || head.y > gridY*32)
         _window.close();
 }
 
@@ -170,7 +232,7 @@ void Game::checkApple(sf::Vector2f lastPos) {
 
 // new apple
 void Game::newApple() {
-    _apple.setPosition({static_cast<float>((rand()%_gridX)*32+4), static_cast<float>((rand()%_gridY)*32+4)});
+    _apple.setPosition({static_cast<float>((rand()%gridX)*32+4), static_cast<float>((rand()%gridY)*32+4)});
 }
 
 // Render game to screen
@@ -184,6 +246,7 @@ void Game::render() {
     _window.draw(_apple);
     for (int i = 0; i < _sprites.size(); i++)
         _window.draw(_sprites[i]);
+    _window.draw(_player);
     _window.display();
 }
 
