@@ -14,11 +14,11 @@ class Game {
         Game(const Game&) = delete;
         Game& operator=(const Game&) = delete;
         Game();
-        void run();
+        void run(int fps);
     
     private:
         void processEvents();
-        void update();
+        void update(sf::Time deltaTime);
         void moveSnake(int direction);
         void checkHitTail();
         void checkHitWall();
@@ -34,6 +34,7 @@ class Game {
         sf::Vector2f _LastTailPos;
         sf::RectangleShape _apple;
         int appleNum = 0;
+        int _direction = 0; 
         // sf::RenderWindow _sprites;
         // sf::RenderWindow _menu;
 };
@@ -61,11 +62,23 @@ Game::Game() : _window(sf::VideoMode({1920u, 1080u}), "CMake SFML Project") {
 }
 
 // Main game loop
-void Game::run() {
+void Game::run(int fps) {
+    sf::Clock clock;
+    sf::Time timeSinceLastUpdate = sf::Time::Zero;
+    sf::Time TimePerFrame = sf::seconds(1.f/fps);
+
     while (_window.isOpen()) {
         processEvents();
-        update();
-        render(); 
+        bool repaint = false;
+
+        timeSinceLastUpdate += clock.restart();
+        while (timeSinceLastUpdate > TimePerFrame) {
+            timeSinceLastUpdate -= TimePerFrame;
+            repaint = true;
+            update(TimePerFrame);
+        }
+        if(repaint)
+            render(); 
     }
 }
 
@@ -78,16 +91,16 @@ void Game::processEvents() {
         } else if ((event->getIf<sf::Event::KeyPressed>())) {
             switch (event->getIf<sf::Event::KeyPressed>()->code) {
                 case sf::Keyboard::Key::W:
-                    moveSnake(1);
+                    _direction = 1;
                     break;
                 case sf::Keyboard::Key::A:
-                    moveSnake(2);
+                    _direction = 2;
                     break;
                 case sf::Keyboard::Key::S:
-                    moveSnake(3);
+                    _direction = 3;
                     break;
                 case sf::Keyboard::Key::D:
-                    moveSnake(4);
+                    _direction = 4;
                     break;
                 default:
                     break;
@@ -97,8 +110,9 @@ void Game::processEvents() {
 }
 
 // actual game
-void Game::update() {
+void Game::update(sf::Time deltaTime) {
     // Kill snake if hit tail
+    moveSnake(_direction);
     checkHitTail();
     checkHitWall();
     checkApple(_LastTailPos);
@@ -177,7 +191,7 @@ int main()
 {
     srand(0);
     Game game;
-    game.run();
+    game.run(10);
 
     return 0;
 }
