@@ -81,16 +81,20 @@ Player::Player() {
 void Player::processEvents(sf::Keyboard::Key key) {
     switch (key) {
         case sf::Keyboard::Key::W:
-            direction = 1;
+            if (direction != 3)
+                direction = 1;
             break;
         case sf::Keyboard::Key::A:
+            if (direction != 4)
             direction = 2;
             break;
         case sf::Keyboard::Key::S:
-            direction = 3;
+            if (direction != 1)
+                direction = 3;
             break;
         case sf::Keyboard::Key::D:
-            direction = 4;
+            if (direction != 2)
+                direction = 4;
             break;
         default:
             break;
