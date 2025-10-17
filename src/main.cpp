@@ -3,7 +3,50 @@
 #include <cstdlib> // rand
 #include <cstring> // memcpy in class Action
 #include <cmath>   // sin and cos
+#include <iostream> // debugging
 
+class GridItem {
+    public:
+        static const int gridX = 60;
+        static const int gridY = 32;
+        static const int gridSize = 32; // size of each square on the grid
+
+        GridItem(int x = 0, int y = 0, int size = 24, sf::Color color = sf::Color::Magenta);
+
+        int getX() {return x;}
+        int getY() {return y;}
+        int getSize() {return size;}
+        sf::Vector2f getPosition() {return {x*gridSize*1.f+gridSize-size, y*gridSize*1.f+gridSize-size};}
+
+        void setX(int val) {x=val;}
+        void setY(int val) {y=val;}
+        void setPos(int newx, int newy) {x=newx; y=newy;}
+        void setSize(int val) {size=val;}
+        void move(int dx, int dy) {x+=dx; y+=dy;}
+
+        void draw(sf::RenderWindow& window);
+
+    private:
+        sf::RectangleShape item;
+        int x;    // x location on the grid
+        int y;    // y location on the grid
+        int size; // size of item on the grid, 24
+};
+
+GridItem::GridItem(int x, int y, int size, sf::Color color) : item(sf::Vector2f(24,24)) {
+    this->x=x;
+    this->y=y;
+    this->size=size;
+
+    item.setSize(sf::Vector2f(size,size));
+    item.setFillColor(color);
+    item.setOrigin({(this->gridSize-this->size*1.f)/2,(this->gridSize-this->size*1.f)/2});
+}
+
+void GridItem::draw(sf::RenderWindow& window) {
+    item.setPosition(sf::Vector2f(x*gridSize*1.f+gridSize-size, y*gridSize*1.f+gridSize-size));
+    window.draw(item);
+}
 
 // Player :3
 class Player {
@@ -12,14 +55,6 @@ class Player {
         Player& operator=(const Player&) = delete;
         Player();
 
-        // to handle both overloads of sf::Transformable::setPosition(), which can use two floats, or a Vector2f
-        // we need to template for multiple args, and just pass all of them directly to the _shape.setPosition(), 
-        // regardless of what is given.  
-        template<typename ... Args>
-        void setPosition(Args&& ... args) {
-            snake[0].setPosition(std::forward<Args>(args)...);
-        }
-
         void moveSnake();
         bool checkHitTail();
         bool checkHitWall();
@@ -27,19 +62,20 @@ class Player {
 
         bool update(sf::Time deltaTime);
         void processEvents(sf::Keyboard::Key key);
-        void draw(sf::RenderWindow& window) {for (sf::RectangleShape segment : snake) window.draw(segment);}
+        void draw(sf::RenderWindow& window) {
+            for (int i = 0; i < snake.size(); i++) {
+                snake[i].draw(window);
+            }
+        }
     
     private:
-        std::vector<sf::RectangleShape> snake;
+        std::vector<GridItem> snake;
         int direction;
         sf::Vector2f tail; // location of last position
 };
 
 Player::Player() {
-    snake.push_back(sf::RectangleShape(sf::Vector2f(24,24)));
-    snake[0].setFillColor(sf::Color(71, 223, 127));
-    snake[0].setOrigin({4,4});
-    snake[0].setPosition({1920/2-24, 1024/2-24});
+    snake.push_back(GridItem(GridItem::gridX/2, GridItem::gridY/2, 24, sf::Color(71, 223, 127)));
 }
 
 void Player::processEvents(sf::Keyboard::Key key) {
@@ -79,10 +115,7 @@ bool Player::checkHitTail() {
 // Check if collided with apple, and add new segment if it did
 bool Player::checkApple(sf::Vector2f applePos) {
     if (snake[0].getPosition() == applePos) {
-        snake.push_back(sf::RectangleShape(sf::Vector2f(24,24)));
-        snake[snake.size()-1].setFillColor(sf::Color(71, 223, 127));
-        snake[snake.size()-1].setOrigin({4,4});
-        snake[snake.size()-1].setPosition(tail);
+        snake.push_back(GridItem(tail.x, tail.y, 24, sf::Color(71, 223, 127)));
         return true;
     }
     return false;
@@ -93,44 +126,37 @@ bool Player::checkApple(sf::Vector2f applePos) {
 void Player::moveSnake() {
     tail = snake[snake.size()-1].getPosition();
     for (int i = snake.size()-1; i >= 1; i--) {
-        snake[i].setPosition(snake[i-1].getPosition());
+        snake[i].setPos(snake[i-1].getX(), snake[i-1].getY());
     }
     switch (direction) {
-        case 1:
-            snake[0].move(sf::Vector2f(0,-32));
+        case 1: // up
+            snake[0].move(0,-1);
             break;
-        case 2:
-            snake[0].move(sf::Vector2f(-32,0));
+        case 2: // left
+            snake[0].move(-1,0);
             break;
-        case 3:
-            snake[0].move(sf::Vector2f(0,32));
+        case 3: // down
+            snake[0].move(0,1);
             break;
-        case 4:
-            snake[0].move(sf::Vector2f(32,0));
+        case 4: // right
+            snake[0].move(1,0);
             break;
         default:
             break;
     }
 }
 
-class Apple {
+class Apple : public GridItem {
     public:
-        Apple(const Apple&) = delete;
-        Apple& operator=(const Apple&) = delete;
-        Apple();
-
-        sf::Vector2f getPosition() {return _apple.getPosition();}
-        
+        Apple(int x = 0, int y = 0, int size = 24, sf::Color color = sf::Color::Magenta);
         void newApple();
-        void draw(sf::RenderWindow& window) {window.draw(_apple);}
-    
-    private:
-        sf::RectangleShape _apple;
 };
-Apple::Apple() : _apple(sf::Vector2f(24,24)) {
-    _apple.setFillColor(sf::Color(223, 71, 127));
-    _apple.setOrigin({4,4});
+Apple::Apple(int x, int y, int size, sf::Color color) {
     newApple();
+}
+void Apple::newApple() {
+    setX(rand()%gridX);
+    setY(rand()%gridY);
 }
 
 /* Game class for 
@@ -146,8 +172,6 @@ class Game {
         Game& operator=(const Game&) = delete;
         Game();
         void run(int fps);
-        static const int gridX = 60;
-        static const int gridY = 32;
     
     private:
         void processEvents();
@@ -158,7 +182,9 @@ class Game {
         void render();
 
         sf::RenderWindow _window;
-        sf::RectangleShape _background[gridX][gridY]; // do this next
+        // sf::RectangleShape _background[gridX][gridY]; // do this next
+        sf::RectangleShape _checkerSprite; // rectangle sized to window, with repeated texture
+        sf::Texture _checkerTexture;
 
         std::vector<sf::RectangleShape> _sprites;
         sf::Vector2f _LastTailPos;
@@ -172,27 +198,28 @@ class Game {
 
 bool Player::checkHitWall() {
     sf::Vector2f head = snake[0].getPosition();
-    if (head.x < 0 || head.x > Game::gridX*32 || head.y < 0 || head.y > Game::gridY*32)
+    if (head.x < 0 || head.x > GridItem::gridX*32 || head.y < 0 || head.y > GridItem::gridY*32)
         return true;
     return false;
 }
 
-// new apple
-void Apple::newApple() {
-    _apple.setPosition({((rand()%Game::gridX)*32.f+8), ((rand()%Game::gridY)*32.f+8)});
-}
 
 // Create the window and player
 Game::Game() : _window(sf::VideoMode({1920u, 1080u}), "Kept you waiting huh?") {
-    for (int i = 0; i < 60;i++) {
-        for (int j = 0; j < 32; j++) {
-            _background[i][j].setSize(sf::Vector2f(32,32));
-            if ((i+j)%2)
-                _background[i][j].setFillColor(sf::Color(40,40,40));
-            else _background[i][j].setFillColor(sf::Color(20,20,20));
-            _background[i][j].setPosition({static_cast<float>(i)*32, static_cast<float>(j)*32});
-        }
-    }
+    // create 2x2 checker image (light/dark)
+    sf::Image img({2,2}, sf::Color(20,20,20));
+    img.setPixel({1, 0}, sf::Color(40,40,40)); // light
+    img.setPixel({0, 1}, sf::Color(40,40,40)); // light
+
+    if (!_checkerTexture.loadFromImage(img)) _window.close();
+    _checkerTexture.setRepeated(true);
+
+    sf::Vector2u win = _window.getSize();
+    _checkerSprite.setSize({(GridItem::gridX)*GridItem::gridSize, (GridItem::gridY)*GridItem::gridSize});
+
+    // set texture rect so the tiny texture repeats to fill the whole window
+    _checkerSprite.setTexture(&_checkerTexture);
+    _checkerSprite.setTextureRect(sf::IntRect({0,0},{GridItem::gridX, GridItem::gridY}));
 }
 
 // Main game loop
@@ -238,11 +265,12 @@ void Game::update(sf::Time deltaTime) {
 // Render game to screen
 void Game::render() {
     _window.clear();
-    for (int i = 0; i < 60; i++) {
-        for (int j = 0; j < 32; j++) {
-            _window.draw(_background[i][j]);
-        }
-    }
+    // for (int i = 0; i < 60; i++) {
+    //     for (int j = 0; j < 32; j++) {
+    //         _window.draw(_background[i][j]);
+    //     }
+    // }
+    _window.draw(_checkerSprite);
     _apple.draw(_window);
     for (int i = 0; i < _sprites.size(); i++)
         _window.draw(_sprites[i]);
