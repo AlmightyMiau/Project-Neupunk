@@ -5,10 +5,17 @@
 #include <cmath>   // sin and cos
 #include <iostream> // debugging
 
+class Consts {
+    public:
+        static const int windowX = 60;
+        static const int windowY = 32;
+        static const int gridX = 54;
+        static const int gridY = 28;
+        static const int gridOffset = 1;
+};
+
 class GridItem {
     public:
-        static const int gridX = 60;
-        static const int gridY = 32;
         static const int gridSize = 32; // size of each square on the grid
 
         GridItem(int x = 0, int y = 0, int size = 24, sf::Color color = sf::Color::Magenta);
@@ -44,7 +51,7 @@ GridItem::GridItem(int x, int y, int size, sf::Color color) : item(sf::Vector2f(
 }
 
 void GridItem::draw(sf::RenderWindow& window) {
-    item.setPosition(sf::Vector2f(x*gridSize*1.f+gridSize-size, y*gridSize*1.f+gridSize-size));
+    item.setPosition(sf::Vector2f(x*gridSize*1.f+(1+Consts::gridOffset)*gridSize-size, y*gridSize*1.f+(1+Consts::gridOffset)*gridSize-size));
     window.draw(item);
 }
 
@@ -55,9 +62,12 @@ class Player {
         Player& operator=(const Player&) = delete;
         Player();
 
+        int getLength() {return snake.size();}
+
         void moveSnake();
         bool checkHitTail();
         bool checkHitWall();
+        void sizeUp();
         bool checkApple(sf::Vector2f applePos);
 
         bool update(sf::Time deltaTime);
@@ -75,7 +85,7 @@ class Player {
 };
 
 Player::Player() {
-    snake.push_back(GridItem(GridItem::gridX/2, GridItem::gridY/2, 24, sf::Color(71, 223, 127)));
+    snake.push_back(GridItem(Consts::gridX/2, Consts::gridY/2, 24, sf::Color(71, 223, 127)));
 }
 
 void Player::processEvents(sf::Keyboard::Key key) {
@@ -95,6 +105,9 @@ void Player::processEvents(sf::Keyboard::Key key) {
         case sf::Keyboard::Key::D:
             if (direction != 2)
                 direction = 4;
+            break;
+        case sf::Keyboard::Key::C: // CHEAT (add snake length)
+            sizeUp();
             break;
         default:
             break;
@@ -116,10 +129,14 @@ bool Player::checkHitTail() {
     return false;
 }
 
+void Player::sizeUp() {
+    snake.push_back(GridItem(tail.x, tail.y, 24, sf::Color(71, 223, 127)));
+}
+
 // Check if collided with apple, and add new segment if it did
 bool Player::checkApple(sf::Vector2f applePos) {
     if (snake[0].getPosition() == applePos) {
-        snake.push_back(GridItem(tail.x, tail.y, 24, sf::Color(71, 223, 127)));
+        sizeUp();
         return true;
     }
     return false;
@@ -159,8 +176,8 @@ Apple::Apple(int x, int y, int size, sf::Color color) {
     newApple();
 }
 void Apple::newApple() {
-    setX(rand()%gridX);
-    setY(rand()%gridY);
+    setX(rand()%Consts::gridX);
+    setY(rand()%Consts::gridY);
 }
 
 /* Game class for 
@@ -186,44 +203,46 @@ class Game {
         void render();
 
         sf::RenderWindow _window;
-        // sf::RectangleShape _background[gridX][gridY]; // do this next
-        sf::RectangleShape _checkerSprite; // rectangle sized to window, with repeated texture
-        sf::Texture _checkerTexture;
 
-        std::vector<sf::RectangleShape> _sprites;
-        sf::Vector2f _LastTailPos;
-        int _direction = 0; 
+        sf::RectangleShape backgroundSprite; 
+        sf::Texture backgroundTexture;
 
         Player _player;
         Apple _apple;
-        // sf::RenderWindow _sprites;
-        // sf::RenderWindow _menu;
+
+        // hud/ui
+        sf::Font font;
+        sf::Text scoreDisplay;
 };
 
 bool Player::checkHitWall() {
     sf::Vector2f head = snake[0].getPosition();
-    if (head.x < 0 || head.x > GridItem::gridX*32 || head.y < 0 || head.y > GridItem::gridY*32)
+    if (head.x < 0 || head.x > Consts::gridX*32 || head.y < 0 || head.y > Consts::gridY*32)
         return true;
     return false;
 }
 
 
 // Create the window and player
-Game::Game() : _window(sf::VideoMode({1920u, 1080u}), "Kept you waiting huh?") {
+Game::Game() : _window(sf::VideoMode({1920u, 1080u}), "Kept you waiting huh?"), font("FreePixel.ttf"), scoreDisplay(font, "Length: 1", 24) {
     // create 2x2 checker image (light/dark)
     sf::Image img({2,2}, sf::Color(20,20,20));
     img.setPixel({1, 0}, sf::Color(40,40,40)); // light
     img.setPixel({0, 1}, sf::Color(40,40,40)); // light
 
-    if (!_checkerTexture.loadFromImage(img)) _window.close();
-    _checkerTexture.setRepeated(true);
+    if (!backgroundTexture.loadFromImage(img)) _window.close();
+    backgroundTexture.setRepeated(true);
 
     sf::Vector2u win = _window.getSize();
-    _checkerSprite.setSize({(GridItem::gridX)*GridItem::gridSize, (GridItem::gridY)*GridItem::gridSize});
+    backgroundSprite.setSize({(Consts::gridX)*GridItem::gridSize, (Consts::gridY)*GridItem::gridSize});
+    backgroundSprite.setPosition({Consts::gridOffset*GridItem::gridSize, Consts::gridOffset*GridItem::gridSize}); // move the game 1 square away from the top left
 
     // set texture rect so the tiny texture repeats to fill the whole window
-    _checkerSprite.setTexture(&_checkerTexture);
-    _checkerSprite.setTextureRect(sf::IntRect({0,0},{GridItem::gridX, GridItem::gridY}));
+    backgroundSprite.setTexture(&backgroundTexture);
+    backgroundSprite.setTextureRect(sf::IntRect({0,0},{Consts::gridX, Consts::gridY}));
+
+    scoreDisplay.setPosition({(Consts::gridX+Consts::gridOffset)*GridItem::gridSize+8, (2+Consts::gridOffset)*GridItem::gridSize});
+    scoreDisplay.setFillColor(sf::Color::Magenta);
 }
 
 // Main game loop
@@ -262,23 +281,23 @@ void Game::processEvents() {
 // actual game
 void Game::update(sf::Time deltaTime) {
     if (_player.update(deltaTime)) GameOver();
-    if (_player.checkApple(_apple.getPosition()))
+    if (_player.checkApple(_apple.getPosition())) {
         _apple.newApple();
+        scoreDisplay.setString("Length : " + std::to_string(_player.getLength()));
+    }
 }
 
 // Render game to screen
 void Game::render() {
     _window.clear();
-    // for (int i = 0; i < 60; i++) {
-    //     for (int j = 0; j < 32; j++) {
-    //         _window.draw(_background[i][j]);
-    //     }
-    // }
-    _window.draw(_checkerSprite);
+
+    _window.draw(backgroundSprite);
+
     _apple.draw(_window);
-    for (int i = 0; i < _sprites.size(); i++)
-        _window.draw(_sprites[i]);
     _player.draw(_window);
+
+    _window.draw(scoreDisplay);
+
     _window.display();
 }
 
