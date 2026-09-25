@@ -11,10 +11,11 @@ struct Consts {
     static const int gridX = 54;
     static const int gridY = 28;
     static const int gridOffset = 1;
+    static const int itemSize = 24;
 };
 
 enum GAMESTATES {
-    // MAINMENU,
+    MAINMENU,
     PLAYING,
     GAMEOVER,
     EXIT
@@ -24,7 +25,7 @@ class GridItem {
     public:
         static const int gridSize = 32; // size of each square on the grid
 
-        GridItem(int x = 0, int y = 0, int size = 24, sf::Color color = sf::Color::Magenta);
+        GridItem(int x = 0, int y = 0, int size = Consts::itemSize, sf::Color color = sf::Color::Magenta);
 
         int getX() {return x;}
         int getY() {return y;}
@@ -46,7 +47,7 @@ class GridItem {
         int size; // size of item on the grid, 24
 };
 
-GridItem::GridItem(int x, int y, int size, sf::Color color) : item(sf::Vector2f(24,24)) {
+GridItem::GridItem(int x, int y, int size, sf::Color color) : item(sf::Vector2f(Consts::itemSize,Consts::itemSize)) {
     this->x=x;
     this->y=y;
     this->size=size;
@@ -77,6 +78,7 @@ class Player {
         bool checkHitWall();
         void sizeUp();
         bool checkApple(sf::Vector2f applePos);
+        void reset();
 
         bool update(sf::Time deltaTime);
         void processEvents(sf::Keyboard::Key key);
@@ -93,7 +95,7 @@ class Player {
 };
 
 Player::Player() {
-    snake.push_back(GridItem(Consts::gridX/2, Consts::gridY/2, 24, sf::Color(71, 223, 127)));
+    snake.push_back(GridItem(Consts::gridX/2, Consts::gridY/2, Consts::itemSize, sf::Color(71, 223, 127)));
 }
 
 void Player::processEvents(sf::Keyboard::Key key) {
@@ -138,7 +140,7 @@ bool Player::checkHitTail() {
 }
 
 void Player::sizeUp() {
-    snake.push_back(GridItem(tail.x, tail.y, 24, sf::Color(71, 223, 127)));
+    snake.push_back(GridItem(tail.x, tail.y, Consts::itemSize, sf::Color(71, 223, 127)));
 }
 
 // Check if collided with apple, and add new segment if it did
@@ -148,6 +150,15 @@ bool Player::checkApple(sf::Vector2f applePos) {
         return true;
     }
     return false;
+}
+
+// Get rid of the snake
+void Player::reset() {
+    while (snake.size() > 0) {
+        snake.pop_back();
+    }
+    snake.push_back(GridItem(Consts::gridX/2, Consts::gridY/2, Consts::itemSize, sf::Color(71, 223, 127)));
+    direction = 0;
 }
 
 // move the snake
@@ -177,7 +188,7 @@ void Player::moveSnake() {
 
 class Apple : public GridItem {
     public:
-        Apple(int x = 0, int y = 0, int size = 24, sf::Color color = sf::Color::Magenta);
+        Apple(int x = 0, int y = 0, int size = Consts::itemSize, sf::Color color = sf::Color::Magenta);
         void newApple();
 };
 Apple::Apple(int x, int y, int size, sf::Color color) {
@@ -188,54 +199,55 @@ void Apple::newApple() {
     setY(rand()%Consts::gridY);
 }
 
-// class MainMenu {
-//     public:
-//         MainMenu(const MainMenu&) = delete;
-//         MainMenu& operator=(const MainMenu&) = delete;
-//         MainMenu(sf::Font font);
+class MainMenu {
+    public:
+        MainMenu(const MainMenu&) = delete;
+        MainMenu& operator=(const MainMenu&) = delete;
+        MainMenu(sf::Font& font);
 
-//         void processEvents(sf::Keyboard::Key key);
-//         GAMESTATES update() {return gameState;}
-//         void draw(sf::RenderWindow& window);
+        void setGameState (GAMESTATES g) {gameState = g;};
+        void processEvents(sf::Keyboard::Key key);
+        GAMESTATES update() {return gameState;}
+        void draw(sf::RenderWindow& window);
 
-//     private:
-//         sf::Text title;
-//         sf::Text playButton;
-//         sf::Text exitButton;
-//         GAMESTATES gameState;
-// };
+    private:
+        sf::Text title;
+        sf::Text playButton;
+        sf::Text exitButton;
+        GAMESTATES gameState;
+};
 
-// MainMenu::MainMenu(sf::Font font) : title(font, "Title", 24), playButton(font, "Play Game", 24), exitButton(font, "Exit", 24) {
-//     title.setPosition({(Consts::gridX+Consts::gridOffset)*GridItem::gridSize+8, (2+Consts::gridOffset)*GridItem::gridSize});
-//     title.setFillColor(sf::Color::Magenta);
+MainMenu::MainMenu(sf::Font& font) : title(font, "Title", 30), playButton(font, "Play Game", Consts::itemSize), exitButton(font, "Exit", Consts::itemSize) {
+    title.setPosition({(Consts::gridX+Consts::gridOffset)*GridItem::gridSize+8, (2+Consts::gridOffset)*GridItem::gridSize});
+    title.setFillColor(sf::Color::Red);
 
-//     playButton.setPosition({(Consts::gridX+Consts::gridOffset)*GridItem::gridSize+8, (2+Consts::gridOffset)*GridItem::gridSize});
-//     playButton.setFillColor(sf::Color::Magenta);
+    playButton.setPosition({(Consts::gridX+Consts::gridOffset)*GridItem::gridSize+8, (2+Consts::gridOffset)*GridItem::gridSize});
+    playButton.setFillColor(sf::Color::Magenta);
 
-//     exitButton.setPosition({(Consts::gridX+Consts::gridOffset)*GridItem::gridSize+8, (2+Consts::gridOffset)*GridItem::gridSize});
-//     exitButton.setFillColor(sf::Color::Magenta);
+    exitButton.setPosition({(Consts::gridX+Consts::gridOffset)*GridItem::gridSize+8, (2+Consts::gridOffset)*GridItem::gridSize});
+    exitButton.setFillColor(sf::Color::Magenta);
 
-//     gameState = MAINMENU;
-// }
+    gameState = MAINMENU;
+}
 
-// void MainMenu::processEvents(sf::Keyboard::Key key) {
-//     switch (key) {
-//         case sf::Keyboard::Key::Enter:
-//         case sf::Keyboard::Key::Space:
-//             gameState = PLAYING;
-//             break;
-//         case sf::Keyboard::Key::Escape:
-//             gameState = EXIT;
-//             break;
-//         default:
-//             break;
-//     }
-// }
-// void MainMenu::draw(sf::RenderWindow& window) {
-//     //window.draw(title);
-//     // window.draw(playButton);
-//     // window.draw(exitButton);
-// }
+void MainMenu::processEvents(sf::Keyboard::Key key) {
+    switch (key) {
+        case sf::Keyboard::Key::Enter:
+        case sf::Keyboard::Key::Space:
+            gameState = PLAYING;
+            break;
+        case sf::Keyboard::Key::Escape:
+            gameState = EXIT;
+            break;
+        default:
+            break;
+    }
+}
+void MainMenu::draw(sf::RenderWindow& window) {
+    window.draw(title);
+    window.draw(playButton);
+    window.draw(exitButton);
+}
 
 /* Game class for 
     Window creation
@@ -256,7 +268,12 @@ class Game {
         void update(sf::Time deltaTime);
 
         void Exit() {_window.close();}
-        void GameOver() {_window.close();}
+        void GameOver() {
+            gameState = MAINMENU; 
+            mainMenu.setGameState(MAINMENU);
+            _player.reset();
+            scoreDisplay.setString("Length : " + std::to_string(_player.getLength()));
+        }
 
         void render();
 
@@ -273,7 +290,7 @@ class Game {
         // hud/ui
         sf::Font font;
         sf::Text scoreDisplay;
-        // MainMenu mainMenu;
+        MainMenu mainMenu;
 };
 
 bool Player::checkHitWall() {
@@ -285,8 +302,8 @@ bool Player::checkHitWall() {
 
 
 // Create the window and player
-Game::Game() : _window(sf::VideoMode({1920u, 1080u}), "Kept you waiting huh?"), font("FreePixel.ttf"), scoreDisplay(font, "Length: 1", 24)/*, mainMenu(font)*/ {
-    // gameState = MAINMENU;
+Game::Game() : _window(sf::VideoMode({1920u, 1080u}), "Kept you waiting huh?"), font("FreePixel.ttf"), scoreDisplay(font, "Length: 1", Consts::itemSize), mainMenu(font) {
+    gameState = MAINMENU;
     // create 2x2 checker image (light/dark)
     sf::Image img({2,2}, sf::Color(20,20,20));
     img.setPixel({1, 0}, sf::Color(40,40,40)); // light
@@ -338,53 +355,53 @@ void Game::processEvents() {
             _window.close();
             break;
         } else if (event->getIf<sf::Event::KeyPressed>()) {
-            // switch (gameState) {
-            //     case MAINMENU:
-            //         mainMenu.processEvents(event->getIf<sf::Event::KeyPressed>()->code);
-            //         break;
-            //     case PLAYING:
+            switch (gameState) {
+                case MAINMENU:
+                    mainMenu.processEvents(event->getIf<sf::Event::KeyPressed>()->code);
+                    break;
+                case PLAYING:
                     _player.processEvents(event->getIf<sf::Event::KeyPressed>()->code);
-            //         break;
-            // }
+                    break;
+            }
         }
     }
 }
 
 // actual game
 void Game::update(sf::Time deltaTime) {
-//     switch (gameState) {
-//         case MAINMENU:
-//             gameState = mainMenu.update();
-//             break;
-//         case PLAYING:
+    switch (gameState) {
+        case MAINMENU:
+            gameState = mainMenu.update(); // i dont think this does anything
+            break;
+        case PLAYING:
             if (_player.update(deltaTime)) GameOver();
             if (_player.checkApple(_apple.getPosition())) {
                 _apple.newApple();
                 scoreDisplay.setString("Length : " + std::to_string(_player.getLength()));
             }
-    //         break;
-    //     default:
-    //         std::cout << "fuck";
-    //         break;
-    // }
+            break;
+        default:
+            std::cout << "fuck";
+            break;
+    }
 }
 
 // Render game to screen
 void Game::render() {
     _window.clear();
 
-    // switch (gameState) {
-    //     case MAINMENU:
-    //         mainMenu.draw(_window);
-    //         break;
-    //     case PLAYING:
+    switch (gameState) {
+        case MAINMENU:
+            mainMenu.draw(_window);
+            break;
+        case PLAYING:
             _window.draw(backgroundSprite);
             _window.draw(scoreDisplay);
             _apple.draw(_window);
             _player.draw(_window);
-            // break;
-    // }
-
+            break;
+    }
+    
     _window.display();
 }
 
