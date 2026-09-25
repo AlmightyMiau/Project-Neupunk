@@ -101,18 +101,22 @@ Player::Player() {
 void Player::processEvents(sf::Keyboard::Key key) {
     switch (key) {
         case sf::Keyboard::Key::W:
+        case sf::Keyboard::Key::Up:
             if (direction != 3)
                 direction = 1;
             break;
         case sf::Keyboard::Key::A:
+        case sf::Keyboard::Key::Left:
             if (direction != 4)
             direction = 2;
             break;
         case sf::Keyboard::Key::S:
+        case sf::Keyboard::Key::Down:
             if (direction != 1)
                 direction = 3;
             break;
         case sf::Keyboard::Key::D:
+        case sf::Keyboard::Key::Right:
             if (direction != 2)
                 direction = 4;
             break;
@@ -163,6 +167,7 @@ void Player::reset() {
 
 // move the snake
 // w:1, a:2, s:3, d:4
+// arrows also
 void Player::moveSnake() {
     tail = snake[snake.size()-1].getPosition();
     for (int i = snake.size()-1; i >= 1; i--) {
