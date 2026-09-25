@@ -5,13 +5,19 @@
 #include <cmath>   // sin and cos
 #include <iostream> // debugging
 
-class Consts {
-    public:
-        static const int windowX = 60;
-        static const int windowY = 32;
-        static const int gridX = 54;
-        static const int gridY = 28;
-        static const int gridOffset = 1;
+struct Consts {
+    static const int windowX = 60;
+    static const int windowY = 32;
+    static const int gridX = 54;
+    static const int gridY = 28;
+    static const int gridOffset = 1;
+};
+
+enum GAMESTATES {
+    // MAINMENU,
+    PLAYING,
+    GAMEOVER,
+    EXIT
 };
 
 class GridItem {
@@ -51,7 +57,9 @@ GridItem::GridItem(int x, int y, int size, sf::Color color) : item(sf::Vector2f(
 }
 
 void GridItem::draw(sf::RenderWindow& window) {
-    item.setPosition(sf::Vector2f(x*gridSize*1.f+(1+Consts::gridOffset)*gridSize-size, y*gridSize*1.f+(1+Consts::gridOffset)*gridSize-size));
+    // gridSize (where it go) + (gridSize - size) (the grid offset) 
+    float scale = gridSize * 1.f;
+    item.setPosition(sf::Vector2f((x + Consts::gridOffset) * scale + (gridSize - size), (y + Consts::gridOffset) * scale + (gridSize - size)));
     window.draw(item);
 }
 
@@ -180,6 +188,55 @@ void Apple::newApple() {
     setY(rand()%Consts::gridY);
 }
 
+// class MainMenu {
+//     public:
+//         MainMenu(const MainMenu&) = delete;
+//         MainMenu& operator=(const MainMenu&) = delete;
+//         MainMenu(sf::Font font);
+
+//         void processEvents(sf::Keyboard::Key key);
+//         GAMESTATES update() {return gameState;}
+//         void draw(sf::RenderWindow& window);
+
+//     private:
+//         sf::Text title;
+//         sf::Text playButton;
+//         sf::Text exitButton;
+//         GAMESTATES gameState;
+// };
+
+// MainMenu::MainMenu(sf::Font font) : title(font, "Title", 24), playButton(font, "Play Game", 24), exitButton(font, "Exit", 24) {
+//     title.setPosition({(Consts::gridX+Consts::gridOffset)*GridItem::gridSize+8, (2+Consts::gridOffset)*GridItem::gridSize});
+//     title.setFillColor(sf::Color::Magenta);
+
+//     playButton.setPosition({(Consts::gridX+Consts::gridOffset)*GridItem::gridSize+8, (2+Consts::gridOffset)*GridItem::gridSize});
+//     playButton.setFillColor(sf::Color::Magenta);
+
+//     exitButton.setPosition({(Consts::gridX+Consts::gridOffset)*GridItem::gridSize+8, (2+Consts::gridOffset)*GridItem::gridSize});
+//     exitButton.setFillColor(sf::Color::Magenta);
+
+//     gameState = MAINMENU;
+// }
+
+// void MainMenu::processEvents(sf::Keyboard::Key key) {
+//     switch (key) {
+//         case sf::Keyboard::Key::Enter:
+//         case sf::Keyboard::Key::Space:
+//             gameState = PLAYING;
+//             break;
+//         case sf::Keyboard::Key::Escape:
+//             gameState = EXIT;
+//             break;
+//         default:
+//             break;
+//     }
+// }
+// void MainMenu::draw(sf::RenderWindow& window) {
+//     //window.draw(title);
+//     // window.draw(playButton);
+//     // window.draw(exitButton);
+// }
+
 /* Game class for 
     Window creation
     Creation of graphic display
@@ -198,7 +255,8 @@ class Game {
         void processEvents();
         void update(sf::Time deltaTime);
 
-        void GameOver() {_window.close();};
+        void Exit() {_window.close();}
+        void GameOver() {_window.close();}
 
         void render();
 
@@ -210,9 +268,12 @@ class Game {
         Player _player;
         Apple _apple;
 
+        GAMESTATES gameState;
+
         // hud/ui
         sf::Font font;
         sf::Text scoreDisplay;
+        // MainMenu mainMenu;
 };
 
 bool Player::checkHitWall() {
@@ -224,7 +285,8 @@ bool Player::checkHitWall() {
 
 
 // Create the window and player
-Game::Game() : _window(sf::VideoMode({1920u, 1080u}), "Kept you waiting huh?"), font("FreePixel.ttf"), scoreDisplay(font, "Length: 1", 24) {
+Game::Game() : _window(sf::VideoMode({1920u, 1080u}), "Kept you waiting huh?"), font("FreePixel.ttf"), scoreDisplay(font, "Length: 1", 24)/*, mainMenu(font)*/ {
+    // gameState = MAINMENU;
     // create 2x2 checker image (light/dark)
     sf::Image img({2,2}, sf::Color(20,20,20));
     img.setPixel({1, 0}, sf::Color(40,40,40)); // light
@@ -266,6 +328,9 @@ void Game::run(int fps) {
     }
 }
 
+/*
+    HOW TO GET MOUSE INPUT FOR CLICKING BUTTONS ?????????
+*/
 // Handle user inputs
 void Game::processEvents() {
     while (const std::optional<sf::Event> event = _window.pollEvent()) {
@@ -273,30 +338,52 @@ void Game::processEvents() {
             _window.close();
             break;
         } else if (event->getIf<sf::Event::KeyPressed>()) {
-            _player.processEvents(event->getIf<sf::Event::KeyPressed>()->code);
+            // switch (gameState) {
+            //     case MAINMENU:
+            //         mainMenu.processEvents(event->getIf<sf::Event::KeyPressed>()->code);
+            //         break;
+            //     case PLAYING:
+                    _player.processEvents(event->getIf<sf::Event::KeyPressed>()->code);
+            //         break;
+            // }
         }
     }
 }
 
 // actual game
 void Game::update(sf::Time deltaTime) {
-    if (_player.update(deltaTime)) GameOver();
-    if (_player.checkApple(_apple.getPosition())) {
-        _apple.newApple();
-        scoreDisplay.setString("Length : " + std::to_string(_player.getLength()));
-    }
+//     switch (gameState) {
+//         case MAINMENU:
+//             gameState = mainMenu.update();
+//             break;
+//         case PLAYING:
+            if (_player.update(deltaTime)) GameOver();
+            if (_player.checkApple(_apple.getPosition())) {
+                _apple.newApple();
+                scoreDisplay.setString("Length : " + std::to_string(_player.getLength()));
+            }
+    //         break;
+    //     default:
+    //         std::cout << "fuck";
+    //         break;
+    // }
 }
 
 // Render game to screen
 void Game::render() {
     _window.clear();
 
-    _window.draw(backgroundSprite);
-
-    _apple.draw(_window);
-    _player.draw(_window);
-
-    _window.draw(scoreDisplay);
+    // switch (gameState) {
+    //     case MAINMENU:
+    //         mainMenu.draw(_window);
+    //         break;
+    //     case PLAYING:
+            _window.draw(backgroundSprite);
+            _window.draw(scoreDisplay);
+            _apple.draw(_window);
+            _player.draw(_window);
+            // break;
+    // }
 
     _window.display();
 }

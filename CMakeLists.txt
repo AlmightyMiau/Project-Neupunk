@@ -18,6 +18,6 @@ target_link_libraries(main PRIVATE SFML::Graphics SFML::Audio)
 
 #[[
 rm CMakeCache.txt; 
-cmake -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH="C:/Libraries/SFML" ..
+cmake -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH="C:/Program Files/SFML" ..
 
 ]]
